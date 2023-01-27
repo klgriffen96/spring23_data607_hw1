@@ -1,0 +1,103 @@
+---
+title: "Loading Data into a Data Frame"
+author: "Kayleah Griffen"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    highlight: pygments
+    theme: cerulean
+    toc: true
+    toc_float: true
+  pdf_document: default
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r load-packages, echo=FALSE, message=FALSE}
+library(tidyverse)
+library(openintro)
+```
+
+### Introduction
+
+FiveThirtyEight published ["Higher Rates Of Hate Crimes Are Tied To Income Inequality"]("https://fivethirtyeight.com/features/higher-rates-of-hate-crimes-are-tied-to-income-inequality/") which uses data on hate crimes, provided by the FBI and the Southern Poverty Law Center (SPLC), as well as socioeconomic factors, aggregated from multiple sources, to determine what socioeconomic factor or factors are linked to hate crimes. 
+
+To determine that hate crimes are tied to income inequality, FiveThirtyEight performed multivariate linear regression. Unfortunately, the article only shows one visualization, which is two maps displaying average hate crimes per 100,000 residents, one from 2010-2015 and another from the 10 days following the 2016 election. The article then stated that their findings held for both pre-election and post-election. 
+
+While the findings of the article are interesting, they provide no visualizations supporting their actual findings. In order to extend the work of the article, new visualizations were created to represent the findings of the article.
+
+### Analysis
+
+The first step is to load the data from the FiveThirtyEight github repository on hate crimes and socioeconomic factors.
+
+```{r}
+hate_data<-read.csv(
+  "https://raw.githubusercontent.com/fivethirtyeight/data/master/hate-crimes/hate_crimes.csv")
+```
+
+`glimpse` can be used to get a basic overview of the data.
+
+```{r}
+glimpse(hate_data)
+```
+To understand what each column actually means, the [README.md]("https://github.com/fivethirtyeight/data/blob/master/hate-crimes/README.md") was consulted. Based on the README.md, most of the column names are intuitive. However, the `gini_index` was ambiguous because not everyone is familiar with what it is. According to the U.S. Census Bureau, the Gini Index represents income inequality, it is a coefficent ranging from 0 to 1 where 0 indicates everyone's income is equal and 1 indicates that one person or group has all the income (https://www.census.gov/topics/income-poverty/income-inequality/about/metrics/gini-index.html). To make what this column represents more clear, the column name was renamed to `share_income_inequality`. 
+
+```{r}
+colnames(hate_data)[which(names(hate_data) == "gini_index")] <- 
+  "share_income_inequality"
+```
+
+The other column names that were unclear was the `hate_crimes_per_100k_splc` and
+`avg_hatecrimes_per_100k_fbi`. They are unclear because what they do not mention is that the FBI data was data collected from 2010-2015, which FiveThirtyEight used to represent the hate crimes leading up to the 2016 presidential election and the SPLC data was collected from November 9-18, 2016 which FiveThirtyEight used to represent hate crimes after the 2016 presidential election. The article states that they had to use these two different sources of data because the FBI had not yet released it's 2016 data and the SPLC did not collect data prior to the 2016 election. Later in the article, it states that their findings hold true both prior to and after the election. Despite the FBI data having shortcomings in that it only counts prosecutable hate crimes, not all hate incidents, and it is only hate crimes voluntarily reported - it does represent a much longer time period than the SPLC. For this extended analysis due to the longer time period, the `hate_crimes_per_100k_fbi` was used and the `hate_crimes_per_100k_splc` was removed. Furthermore, because the conclusion was just that income inequality was linked to hate crimes, only `share_income_inequality` and `avg_hatecrimes_per_100k_fbi` as well as `state` were saved.
+
+```{r}
+hate_data <- select(hate_data, share_income_inequality, 
+                    avg_hatecrimes_per_100k_fbi, state)
+```
+
+Now to show the result, that higher income inequality is tied to hate crimes, these variables are plotted along with the line of best fit.
+
+```{r, warning=FALSE}
+ggplot(data = hate_data, aes(x = share_income_inequality, 
+                             y = avg_hatecrimes_per_100k_fbi)) +
+  geom_point() + geom_smooth(formula = y ~ x, method = "lm", se = FALSE) + 
+  ggtitle("Income Inequality and Hate Crimes per 100,000 people") + 
+  xlab("Share of Income Inequality") + 
+  ylab("Average Hate Crimes per 100,000 people")
+```
+
+
+Another interesting question is if certain regions of the United States then had more hate crimes than others. The states were broken up by the regions that are designated by the United States Census Bureau. 
+
+```{r}
+hate_data_ne <- subset(hate_data, subset = state %in% c("Connecticut", "Maine", 
+  "Massachusetts", "New Hampshire", "Rhode Island", "New Jersey", "New York", 
+  "Pennsylvania"))
+hate_data_mw <- subset(hate_data, subset = state %in% c("Indiana", "Illinois", 
+  "Michigan", "Ohio", "Wisconsin", "Iowa", "Kansas", "Minnesota", "Missouri", 
+  "Nebraska", "North Dakota", "South Dakota"))
+hate_data_s <- subset(hate_data, subset = state %in% c("Delaware", 
+  "District of Columbia", "Florida", "Georgia", "Maryland", "North Carolina", 
+  "South Carolina", "Virginia", "West Virginia", "Alabama", "Kentucky", 
+  "Mississippi", "Tennessee", "Arkansas", "Louisiana", "Oklahoma", "Texas"))
+hate_data_w <- subset(hate_data, subset = state %in% c("Arizona", "Colorado", 
+  "Idaho", "New Mexico", "Montana", "Utah" ,"Nevada", "Wyoming", "Alaska", 
+  "California", "Hawaii", "Oregon", "Washington"))
+```
+
+Once broken up, the hate crimes were plotted by region.
+
+```{r}
+boxplot(hate_data_ne$avg_hatecrimes_per_100k_fbi, 
+        hate_data_mw$avg_hatecrimes_per_100k_fbi, 
+        hate_data_s$avg_hatecrimes_per_100k_fbi, 
+        hate_data_w$avg_hatecrimes_per_100k_fbi, 
+        main = "Hate Crimes per 100,00 people by Region of United States", 
+        names = c("North East", "Mid West", "South", "West"))
+```
+
+From this plot, it indicates that the most hate crimes occur in the North East and the least in the South.
+
+### Conclusion
+
+To extend the work of FiveThirtyEight, a plot was created to show the linear positive relationship between income inequality and hate crimes. To go a step further, the hate crimes were also displayed by region of the United States. 
